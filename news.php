@@ -58,6 +58,7 @@
     $parametrosGet = array_keys($_GET);
 
     foreach ($parametrosGet as $param) {
+      
       if (!$primeiroParametro) {
         $queryWhere .= " AND ";
       }
@@ -67,17 +68,20 @@
     }
 
     // Executa a query da variável $sql
-    $sql = " SELECT id " .
-      " , description " .
-      " , published " .
-      " , tittle " .
-      " , body " .
-      " FROM news ";
+    $sql = " SELECT news.id " .
+      " , news.description " .
+      " , news.published " .
+      " , news.tittle " .
+      " , articles.body " .
+      " FROM news " . 
+      " LEFT JOIN articles ON (news.id = articles.new_id) ";
 
     // utiliza o where criado com base
     // nos parâmetros do GET
+
     if ($queryWhere != " WHERE ") {
       $sql .= $queryWhere;
+      
     }
 
     // Obtém a conexão com o DB
@@ -141,7 +145,7 @@
 
     // Insere o notícia na tabela
     // news do banco de dados
-    $sql = "INSERT INTO news (tittle, description, body, published ) VALUES ('".$tittle."','".$description."','".$body."',now())";
+    $sql = "INSERT INTO news (tittle, description, published ) VALUES ('".$tittle."','".$description."',now())";
 
     // Obtem a conexão
     $conexao = f_obtem_conexao();
@@ -153,11 +157,21 @@
       $conexao->close();
       die("Erro: " . $sql . "<br>" . $conexao->error);
     }
+    
 
     // Insere as demais informações
     // no Json
     $new["id"] = mysqli_insert_id($conexao);
     echo json_encode($new);
+    
+    // Insere o notícia na tabela
+    // news do banco de dados
+    $sql = "INSERT INTO articles (new_id, body) VALUES ('".$new["id"]."','".$body."')";
+    
+    if (!($conexao->query($sql) === TRUE)) {
+      $conexao->close();
+      die("Erro: " . $sql . "<br>" . $conexao->error);
+    }    
 
     // Fecha a conexão com o
     // Banco de dados
@@ -175,12 +189,9 @@
     $description = $new["description"];
     $body = $new["body"];
 
-    // Atualiza o status de A - ativo
-    // para V - vencido  
     $sql = " UPDATE news "
     ." SET tittle = '".$tittle."' "
     .", description = '".$description."'"
-    .", body = '".$body."'"
     ." WHERE id = ".$id; 
 
     // Obtém a cnexão com o banco
@@ -193,6 +204,17 @@
       $conn->close();
       die("Erro ao atualizar: " . $conn->error);
     }
+
+    $sql = " UPDATE articles "
+    ." SET body = '".$body."'"
+    ." WHERE new_id = ".$id;
+
+    // Verifica se o comando foi
+    // executado com sucesso
+    if (!($conn->query($sql) === TRUE)) {
+      $conn->close();
+      die("Erro ao atualizar: " . $conn->error);
+    }    
 
     // retorna o Registro
     // atualizado
@@ -210,17 +232,25 @@
     // Obtém o id do registro
     // que foi recebido via get
     $id = $_GET["id"];
-    $sql = "DELETE FROM news WHERE id=".$id;
+
+    $sql1 = "DELETE FROM articles WHERE new_id=".$id;
+
+    $sql2 = "DELETE FROM news WHERE id=".$id;
     
     // Obtém a Conexão
     $conn = f_obtem_conexao();
 
     // Executa o comando delete
     // da variável $sql
-    if (!($conn->query($sql) === TRUE)) {
+    if (!($conn->query($sql1) === TRUE)) {
       die("Erro ao deletar: "
       . $conn->error);
     }
+
+    if (!($conn->query($sql2) === TRUE)) {
+      die("Erro ao deletar: "
+      . $conn->error);
+    }    
     
     $conn->close();
   }
